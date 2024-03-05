@@ -27,7 +27,7 @@ pingora = { version = "0.1", features = [ "lb" ] }
 ### 创建Pingora服务器
 
 首先，创建一个Pingora服务器。Pingora的`Server`是一个进程，可以承载一个或多个服务。<br>
-`Server`主要负责配置和CLI参数解析、守护进程化、信号处理、优雅重载或关闭。
+`Server`主要负责解析配置文件和CLI参数、守护进程化、信号处理、优雅重载或关闭。
 
 比较推荐的做法是在`main`函数中初始化`Server`，然后通过`run_forever`孵化所有的运行时线程，阻塞`main`线程直到服务器准备关闭。
 
@@ -43,11 +43,11 @@ fn main() {
 }
 ```
 
-这段代码可以通过编译，但是没有什么作用。
+这段代码可以通过编译，但是没有什么实际作用。
 
 ### 创建负载均衡代理
 下一步，创建一个负载均衡器。负载均衡持有所有上游IP的静态列表。<br>
-`pingora-load-balancing`库已经为`LoadBalancer`结构体提供了常用的负载算法，例如轮询、哈希，直接使用即可。如果需要更复杂的或者自定义的负载策略，用户可以自行实现。<br>
+`pingora-load-balancing`库已经为`LoadBalancer`结构体提供了常用的负载算法如轮询、哈希，直接使用即可。如果需要更复杂的或者自定义的负载策略可以自行实现。<br>
 
 ```rust
 pub struct LB(Arc<LoadBalancer<RoundRobin>>);
@@ -58,7 +58,7 @@ pub struct LB(Arc<LoadBalancer<RoundRobin>>);
 为对象实现`ProxyHttp`特质本质上是定义了请求在代理中的处理逻辑。在`ProxyHttp`中唯一必须的方法是`upstream_peer()`，此方法用于决定当前请求需要转发给哪个后端，方法的返回值即为最终确定的后端。
 
 在`upstream_peer()`的函数体中，通过调用`LoadBalancer`的`select()`方法从上游列表中轮询选择目标后端。<br>
-在本例子中，使用HTTPS链接到后端，因此在构造[`Peer`](peer.md)对象时还需要传入`use_tls`参数(`true`)以及sni参数(`one.one.one.one`)。
+在本例子中，使用HTTPS连接到后端，因此在构造[`Peer`](peer.md)对象时还需要传入`use_tls`参数(`true`)以及sni参数(`one.one.one.one`)。
 
 ```rust
 #[async_trait]
@@ -84,7 +84,7 @@ impl ProxyHttp for LB {
 }
 ```
 
-为了让1.1.1.1后端接受请求，必须为请求设置主机头。`ProxyHttp`的`upstream_request_filter()`方法可以在和后端成功建立连接后、请求头被发送之前修改发送给后端的P请求头。
+为了让1.1.1.1后端接受请求，必须为请求设置主机头Host。`ProxyHttp`的`upstream_request_filter()`方法可以在和后端成功建立连接后、请求头被发送之前修改发送给后端的HTTP请求头。
 
 ```rust
 impl ProxyHttp for LB {
@@ -127,9 +127,9 @@ fn main() {
 }
 ```
 
-### 执行
+### 运行
 
-现在，我们已经将负载均衡添加到了服务中，可以用下面的命令执行工程
+现在，我们已经将负载均衡添加到了服务中，可以用下面的命令运行程序
 
 ```cargo run```
 
@@ -155,7 +155,7 @@ upstream peer is: Backend { addr: Inet(1.0.0.1:443), weight: 1 }
 
 ## 添加功能
 
-Pingora提供了一些实用的特性，只需要几行代码就可以启动并进行配置。
+Pingora提供了一些实用的特性，只需要几行代码就可以启用并配置这些特性。
 例如负载均衡后端健康检查、不停机更新代理程序的二进制文件等等。
 
 ### 对端健康检查
@@ -179,10 +179,6 @@ fn main() {
 curl 127.0.0.1:6188 -svo /dev/null
 ```
 
-We can see that one in every 3 request fails with `502: Bad Gateway`. This is 
-because our peer selection is strictly following the `RoundRobin` selection 
-pattern we gave it with no consideration to whether that peer is healthy. We can
-fix this by adding a basic health check service. 
 可以看到，每三个请求中就有一个报`502: Bad Gateway`，这是因为负载均衡器严格的执行`RoundRobin`负载策略，没有考虑到对端是否还处于健康状态。
 我们可以通过添加基本的健康检查服务来修复这个问题。
 
@@ -252,8 +248,8 @@ pkill -SIGTERM load_balancer
 
 ### 服务器配置
 
-Pingora的配置文件可以定义如何我们的运行负载均衡程序。<br>
-下面是一个示例文件，定义了程序的线程数、pid文件的位置、错误日志文件的位置、升级协作套接字(后面介绍)。<br>
+Pingora的配置文件可以定义如何运行我们的运行负载均衡程序。<br>
+下面是一个示例文件，定义了程序的线程数、pid文件的位置、错误日志文件的位置、升级协作套接字的位置(后面介绍)。<br>
 将下面的内容复制到`load_balancer`工程目录下的`conf.yaml`文件中。
 
 ```yaml
@@ -298,9 +294,9 @@ RUST_LOG=INFO cargo run -- -c conf.yaml -d -u
 
 本例子的完整代码在本仓库中：
 
-[pingora-proxy/examples/load_balancer.rs](../pingora-proxy/examples/load_balancer.rs)
+[pingora-proxy/examples/load_balancer.rs](../../pingora-proxy/examples/load_balancer.rs)
 
 此外还提供了别的一些有用的例子：
 
-[pingora-proxy/examples/](../pingora-proxy/examples/)
-[pingora/examples](../pingora/examples/)
+[pingora-proxy/examples/](../../pingora-proxy/examples/)
+[pingora/examples](../../pingora/examples/)
