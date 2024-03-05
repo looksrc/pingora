@@ -294,9 +294,9 @@ RUST_LOG=INFO cargo run -- -c conf.yaml -d -u
 
 本例子的完整代码在本仓库中：
 
-[pingora-proxy/examples/load_balancer.rs](../../pingora-proxy/examples/load_balancer.rs)
+- [pingora-proxy/examples/load_balancer.rs](../../pingora-proxy/examples/load_balancer.rs)
 
 此外还提供了别的一些有用的例子：
 
-[pingora-proxy/examples/](../../pingora-proxy/examples/)
-[pingora/examples](../../pingora/examples/)
+- [pingora-proxy/examples/](../../pingora-proxy/examples/)
+- [pingora/examples](../../pingora/examples/)
