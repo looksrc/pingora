@@ -1,5 +1,7 @@
 # Pingora User Manual
 
+[English](./README.md) | [中文](./zh/README.md)
+
 ## Quick Start
 In this section we show you how to build a barebones load balancer.
 
