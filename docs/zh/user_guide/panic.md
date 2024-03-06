@@ -1,10 +1,12 @@
-# Handling panics
+# 恐慌处理
 
-Any panic that happens to particular requests does not affect other ongoing requests or the server's ability to handle other requests. Sockets acquired by the panicking requests are dropped (closed). The panics will be captured by the tokio runtime and then ignored.
+如果一个请求处理期间发生了恐慌，不会影响到其它正在处理的请求，也不会影响到服务器接受请求。<br>
+发生恐慌的请求对应的连接套接字会被遗弃(关闭)。恐慌会被tokio运行时捕获并忽略掉。
 
-In order to monitor the panics, Pingora server has built-in Sentry integration.
+为了对恐慌进行监视，Pongora服务器内部集成了Sentry。
 ```rust
 my_server.sentry = Some("SENTRY_DSN");
 ```
 
-Even though a panic is not fatal in Pingora, it is still not the preferred way to handle failures like network timeouts. Panics should be reserved for unexpected logic errors.
+尽管恐慌在Pingora中不是致命的，但还是不推荐在某些业务处理失败时抛出恐慌，比如网络超时。
+恐慌应当用于未预料到的逻辑错误。

@@ -1,6 +1,6 @@
-# Systemd integration
+# 集成到systemd
 
-A Pingora server doesn't depend on systemd but it can easily be made into a systemd service.
+虽然Pingora服务器并不依赖于systemd，但是可以轻易的将其集成到systemd服务中。
 
 ```ini
 [Service]
@@ -11,4 +11,4 @@ ExecReload=kill -QUIT $MAINPID
 ExecReload=/bin/pingora -u -d -c /etc/pingora.conf
 ```
 
-The example systemd setup integrates Pingora's graceful upgrade into systemd. To upgrade the pingora service, simply install a version of the binary and then call `systemctl reload pingora.service`.
+这段systemd配置集成了Pingora的优雅升级操作。如要要优雅升级程序二进制文件，只需要执行`systemctl reload pingora.service`。

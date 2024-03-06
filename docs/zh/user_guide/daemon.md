@@ -1,7 +1,8 @@
-# Daemonization
+# 守护进程
 
-When a Pingora server is configured to run as a daemon, after its bootstrapping, it will move itself to the background and optionally change to run under the configured user and group. The `pid_file` option comes handy in this case for the user to track the PID of the daemon in the background.
+当一个Pingora服务器配置为以守护进程方式运行，启动后会将自己移到后台，以指定的用户和用户组下运行。<br>
+`pid_file`选项用于在这种情况下跟踪守护进程的PID。
 
-Daemonization also allows the server to perform privileged actions like loading secrets and then switch to an unprivileged user before accepting any requests from the network.
+守护进程允许服务器执行特权操作(如加载秘钥)，然后在接受请求前切换到非特权用户。
 
-This process happens in the `run_forever()` call. Because daemonization involves `fork()`, certain things like threads created before this call are likely lost.
+此过程发生于`run_forever()`调用中。由于启动守护进程时需要执行`fork()`，一些在此之前创建的东西(比如线程)可能会丢失。

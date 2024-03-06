@@ -1,19 +1,20 @@
-# Graceful restart and shutdown
+# 优雅重启和优雅关闭
 
-Graceful restart, upgrade, and shutdown mechanisms are very commonly used to avoid errors or downtime when releasing new versions of pingora servers.
+优雅重启、优雅更新、优雅关闭机制，常用于在Pingora服务器发布新版本时防止出现错误和服务中断。
 
-Pingora graceful upgrade mechanism guarantees the following:
-* A request is guaranteed to be handled either by the old server instance or the new one. No request will see connection refused when trying to connect to the server endpoints.
-* A request that can finish within the grace period is guaranteed not to be terminated.
+Pingora优雅更新机制可以保证：
+* 保证新请求必然会被老的或新的服务进程处理。客户端发起请求后不会被拒绝。
+* 请求在宽限时间内都不会被中断.
 
-## How to graceful upgrade
-### Step 0
-Configure the upgrade socket. The old and new server need to agree on the same path to this socket. See configuration manual for details.
+## 优雅更新
+### 步骤 0
+配置套接字文件路径。新旧服务器的套接字必须指向同一个文件。请查看配置手册。
 
-### Step 1
-Start the new instance with the `--upgrade` cli option. The new instance will not try to listen to the service endpoint right away. It will try to acquire the listening socket from the old instance instead.
+### 步骤 1
+启动新实例时在命令行指定`--upgrade`选项。新实例不会为服务新建监听套接字，而是尝试从老实例接收并继承已建立的套接字并监听。
 
-### Step 2
-Send SIGQUIT signal to the old instance. The old instance will start to transfer the listening socket to the new instance.
+### 步骤 2
+向老实例发送`SIGQUIT信号`。老实例开始将监听套接字发给新实例。
 
-Once step 2 is successful, the new instance will start to handle new incoming connections right away. Meanwhile, the old instance will enter its graceful shutdown mode. It waits a short period of time (to give the new instance time to initialize and prepare to handle traffic), after which it will not accept any new connections.
+执行步骤2时，老实例会等待一段时间(让新实例进行初始化并准备接受流量)，时间过后就不再接受新的连接。<br>
+一旦执行成功，新实例开始处理新进的连接请求。同时，老实例进入优雅关闭阶段。

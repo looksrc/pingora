@@ -1,27 +1,30 @@
-# Starting and stoping Pingora server
+# Pingora服务器启停
 
-A pingora server is a regular unprivileged multithreaded process.
+Pingora服务器是一个常规的非特权多线程进程。
 
-## Start
-By default, the server will run in the foreground.
+## 启动
+服务器进程默认情况下在前台运行。
 
-A Pingora server by default takes the following command-line arguments:
+Pingora服务器默认读取下列命令行参数：
 
-| Argument      | Effect        | default|
-| ------------- |-------------| ----|
-| -d, --daemon | Daemonize the server | false |
-| -t, --test | Test the server conf and then exit (WIP) | false |
-| -c, --conf | The path to the configuarion file | empty string |
-| -u, --upgrade | This server should gracefully upgrade a running server | false |
+|       参数    |      效果    | 默认值 |
+| ------------- |-------------| ------|
+| -d, --daemon | 让服务器以守护进程方式运行 | `false` |
+| -t, --test | 测试服务器配置文件然后退出 (进行中) | `false` |
+| -c, --conf | 指定配置文件路径 | 空字符串 |
+| -u, --upgrade | 表明本次启动将对老进程进行优雅更新 | `false` |
 
-## Stop
-A Pingora server will listen to the following signals.
+## 停止
+Pingora服务器进程监听以下信号：
 
-### SIGINT: fast shutdown
-Upon receiving SIGINT (ctrl + c), the server will exit immediately with no delay. All unfinished requests will be interrupted. This behavior is usually less preferred because it could break requests.
+### SIGINT: 快速关闭
+当接收到`SIGINT`信号(ctrl + c)，服务器进程立即停止。
+所有未完成的请求都会被立即中断，因此不推荐使用这个操作。
 
-### SIGTERM: graceful shutdown
-Upon receiving SIGTERM, the server will notify all its services to shutdown, wait for some preconfigured time and then exit. This behavior gives requests a grace period to finish.
+### SIGTERM: 优雅关闭
+当接收到`SIGTERM`信号，服务器会通知所有的服务执行关闭，但有一定的宽限时间。
+此操作给了仍未处理完成的请求一定的宽限期。
 
-### SIGQUIT: graceful upgrade
-Similar to SIGQUIT, but the server will also transfer all its listening sockets to a new Pingora server so that there is no downtime during the upgrade. See the [graceful upgrade](graceful.md) section for more details.
+### SIGQUIT: 优雅更新
+类似于`SIGTERM`，但是服务器会将所有的监听套接字传递给新启动的Pingora服务器进程，以实现在不停机情况下更新程序。
+预了解更多细节，请参考[graceful upgrade](graceful.md)一节。

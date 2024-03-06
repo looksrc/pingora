@@ -1,11 +1,12 @@
-# Sharing state across phases with `CTX`
+# 在各阶段共享状态：`CTX`
 
-## Using `CTX`
-The custom filters users implement in different phases of the request don't interact with each other directly. In order to share information and state across the filters, users can define a `CTX` struct. Each request owns a single `CTX` object. All the filters are able to read and update members of the `CTX` object. The CTX object will be dropped at the end of the request.
+## 使用 `CTX`
+用户在请求的不同阶段实现的自定义过滤器不能直接交互。为了能在过滤器之间共享信息和状态，可以定义一个`CTX`结构体。
+每个请求都拥有一个自己的`CTX`对象。所有过滤器都能读取和更新`CTX`对象的内容。在请求结束时会遗弃CTX对象。
 
-### Example
+### 例子
 
-In the following example, the proxy parses the request header in the `request_filter` phase, it stores the boolean flag so that later in the `upstream_peer` phase the flag is used to decide which server to route traffic to. (Technically, the header can be parsed in `upstream_peer` phase, but we just do it in an earlier phase just for the demonstration.)
+在下面的例子中，代理在`request_filter`阶段解析请求头部的`beta-flag`字段并将信息存入`MyCtx`中，在接下来的`upstream_peer`阶段通过`MyCtx`中的内容判断请求应该转发到哪个后端。(技术上讲，头部也可以在`upstream_peer`阶段解析，我们在这里提前解析只是为了演示`CTX`的用法)。
 
 ```Rust
 pub struct MyProxy();
@@ -15,7 +16,7 @@ pub struct MyCtx {
 }
 
 fn check_beta_user(req: &pingora_http::RequestHeader) -> bool {
-    // some simple logic to check if user is beta
+    // 用一些简单的逻辑校验用户是否为beta用户
     req.headers.get("beta-flag").is_some()
 }
 
@@ -49,20 +50,20 @@ impl ProxyHttp for MyProxy {
 }
 ```
 
-## Sharing state across requests
-Sharing state such as a counter, cache and other info across requests is common. There is nothing special needed for sharing resources and data across requests in Pingora. `Arc`, `static` or any other mechanism can be used.
+## 请求间共享状态
+在不同请求间共享诸如计数、缓存、一些其他信息之类的状态非常常见。
+在Pingora中，不同请求间共享资源和数据时没有什么特殊的要求。可以使用`Arc`、`static`或其他一些可用的机制。
 
-
-### Example
+### 例子
 Let's modify the example above to track the number of beta visitors as well as the number of total visitors. The counters can either be defined in the `MyProxy` struct itself or defined as a global variable. Because the counters can be concurrently accessed, Mutex is used here.
 
 ```Rust
-// global counter
+// 整个代理的全局请求计数
 static REQ_COUNTER: Mutex<usize> = Mutex::new(0);
 
 pub struct MyProxy {
-    // counter for the service
-    beta_counter: Mutex<usize>, // AtomicUsize works too
+    // 当前服务接受到的beta用户的请求计数
+    beta_counter: Mutex<usize>, // 也可以用AtomicUsize
 }
 
 pub struct MyCtx {
@@ -70,7 +71,7 @@ pub struct MyCtx {
 }
 
 fn check_beta_user(req: &pingora_http::RequestHeader) -> bool {
-    // some simple logic to check if user is beta
+    // 用一些简单的逻辑校验用户是否为beta用户
     req.headers.get("beta-flag").is_some()
 }
 
@@ -110,7 +111,7 @@ impl ProxyHttp for MyProxy {
 }
 ```
 
-The complete example can be found under [`pingora-proxy/examples/ctx.rs`](../../pingora-proxy/examples/ctx.rs). You can run it using `cargo`:
+完整的例子在[`pingora-proxy/examples/ctx.rs`](../../../pingora-proxy/examples/ctx.rs)，通过下面的命令启动代理:
 ```
 RUST_LOG=INFO cargo run --example ctx
 ```

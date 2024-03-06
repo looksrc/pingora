@@ -1,19 +1,19 @@
-# Life of a request: pingora-proxy phases and filters
+# 请求处理过程: 各阶段和过滤器
 
-## Intro
-The pingora-proxy HTTP proxy framework supports highly programmable proxy behaviors. This is done by allowing users to inject custom logic into different phases (stages) in the life of a request.
+## 介绍
+Pingora HTTP 代理框架支持可编程的代理行为。允许开发人员将自定义的逻辑注入到处理请求过程中的各个阶段。
 
-## Life of a proxied HTTP request
-1. The life of a proxied HTTP request starts when the proxy reads the request header from the **downstream** (i.e., the client).
-2. Then, the proxy connects to the **upstream** (i.e., the remote server). This step is skipped if there is a previously established [connection to reuse](pooling.md).
-3. The proxy then sends the request header to the upstream.
-4. Once the request header is sent, the proxy enters a duplex mode, which simultaneously proxies:
-    a. upstream response (both header and body) to the downstream, and
-    b. downstream request body to upstream (if any).
-5. Once the entire request/response finishes, the life of the request is ended. All resources are released. The downstream connections and the upstream connections are recycled to be reused if applicable.
+## 代理HTTP请求的处理过程
+1. 首先，从**下游**(客户端)读取请求头。
+2. 然后，连接到**上游**(远程服务器)。如果连接是[复用的已有连接](pooling.md)则跳过这一步。
+3. 然后，向上游发送请求头。
+4. 给上游的请求头发送完毕后，代理进入双向模式，同时代理:
+    a. 上游的响应(头和正文)给下游
+    b. 下游的正文给上游(如果有)
+5. 总的请求/响应完成后，请求过程就结束了，会释放请求相关的资源。下游连接和上游连接在适当的情况下会被复用。
 
-## Pingora-proxy phases and filters
-Pingora-proxy allows users to insert arbitrary logic into the life of a request.
+## Pringora各阶段和过滤器
+开发人员可以在 Pingora 代理处理请求的过程中插入任意的逻辑。
 ```mermaid
  graph TD;
     start("new request")-->request_filter;
@@ -44,82 +44,82 @@ Pingora-proxy allows users to insert arbitrary logic into the life of a request.
     IOFailure>IO error]-->error_while_proxy
 ```
 
-### General filter usage guidelines
-* Most filters return a [`pingora_error::Result<_>`](errors.md). When the returned value is `Result::Err`, `fail_to_proxy()` will be called and the request will be terminated.
-* Most filters are async functions, which allows other async operations such as IO to be performed within the filters.
-* A per-request `CTX` object can be defined to share states across the filters of the same request. All filters have mutable access to this object.
-* Most filters are optional.
-* The reason both `upstream_response_*_filter()` and `response_*_filter()` exist is for HTTP caching integration reasons (still WIP).
-
+### 常规过滤器使用指南
+* 大多数过滤器返回[`pingora_error::Result<_>`](errors.md)。当返回值为`Result::Err`时会调用`fail_to_proxy()`，请求被终止。
+* 大多数过滤器都是异步函数，允许在过滤器中执行其它异步函数操作，如IO操作。
+* 每个请求都对应一个自己的`CTX`对象，可用来在同一个请求的各个过滤器中共享状态。所有过滤器都以可变的方式访问此对象。
+* 大多数过滤器都是可选的.
+* 之所以既有`upstream_response_*_filter()`又有`response_*_filter()`，是为了与HTTP缓存集成(进行中...)。
 
 ### `request_filter()`
-This is the first phase of every request.
+这个阶段是每个请求的首个阶段。
 
-This phase is usually for validating request inputs, rate limiting, and initializing context.
+常用于验证请求内容、限速、初始化上下文。
 
 ### `proxy_upstream_filter()`
-This phase determines if we should continue to the upstream to serve a response. If we short-circuit, a 502 is returned by default, but a different response can be implemented.
+这个阶段决定我们是否应当继续向上游发起请求。如果熔断了，则默认返回502，也可以自定义实现不同的响应内容。
 
-This phase returns a boolean determining if we should continue to the upstream or error.
+此阶段返回一个布尔值，决定我们是否应当继续向上游发起请求，还是直接返回错误。
 
 ### `upstream_peer()`
-This phase decides which upstream to connect to (e.g. with DNS lookup and hashing/round-robin), and how to connect to it.
+这个阶段决定应当连接哪一个上游(例如利用DNS查询和哈希/轮询)，以及如何连接上游。
 
-This phase returns a `Peer` that defines the upstream to connect to. Implementing this phase is **required**.
+此阶段返回`Peer`，定义了需要连接的上游。此阶段是**必选**的，不能忽略。
 
 ### `connected_to_upstream()`
-This phase is executed when upstream is successfully connected.
+这个阶段会在和上游建立连接后执行。
 
-Usually this phase is for logging purposes. Connection info such as RTT and upstream TLS ciphers are reported in this phase.
+这个阶段通常用于记录日志。此阶段会报告 RTT 和上游的 TLS ciphers 等连接信息。
 
 ### `fail_to_connect()`
-The counterpart of `connected_to_upstream()`. This phase is called if an error is encountered when connecting to upstream.
+这个阶段是与`connected_to_upstream()`互斥的阶段。如果连接到上游时遇到了错误，则触发此阶段。
 
-In this phase users can report the error in Sentry/Prometheus/error log. Users can also decide if the error is retry-able.
-
-If the error is retry-able, `upstream_peer()` will be called again, in which case the user can decide whether to retry the same upstream or failover to a secondary one.
-
-If the error is not retry-able, the request will end.
+在本阶段，用户可以将错误报告给 Sentry/Prometheus/error_log。用户也可以决定错误是否是可重试的。
+- 如果错误是可重试的，会再次调用`upstream_peer()`，用户可以抉择是否重试同一个上游或者转移到另一个上游。
+- 如果错误是不可重试的，请求终止。
 
 ### `upstream_request_filter()`
-This phase is to modify requests before sending to upstream.
+这个阶段用于向上游发起请求前修改请求内容。
 
-### `upstream_response_filter()/upstream_response_body_filter()`
-This phase is triggered after an upstream response header/body is received.
+### `upstream_response_filter()`/`upstream_response_body_filter()`
+当代理接收完上游的**头部/正文**后触发此阶段
 
-This phase is to modify response headers (or body) before sending to downstream. Note that this phase is called _prior_ to HTTP caching and therefore any changes made here will affect the response stored in the HTTP cache.
+此阶段用与在响应的**头部/正文**发送给下游之前做一些修改。注意此阶段**先于**HTTP缓存执行，因此在这个阶段所做的修改也会影响到缓存的内容。
 
-### `response_filter()/response_body_filter()/response_trailer_filter()`
-This phase is triggered after a response header/body/trailer is ready to send to downstream.
+### `response_filter()`/`response_body_filter()`/`response_trailer_filter()`
+这个阶段在响应的**头部/正文/尾部**准备发送给下游之前触发。
 
-This phase is to modify them before sending to downstream.
+此阶段用于在发送给下游之前对他们做一些修改。
 
 ### `error_while_proxy()`
-This phase is triggered during proxy errors to upstream, this is after the connection is established.
+如果请求代理到上游期间(发送请求/读取响应)报错了，则会触发此阶段，此阶段发生于连接建立以后。
 
-This phase may decide to retry a request if the connection was re-used and the HTTP method is idempotent.
+在连接是复用的且HTTP方法是幂等的情况下，这个阶段可以决定是否**重试**请求。
 
 ### `fail_to_proxy()`
-This phase is called whenever an error is encounter during any of the phases above.
+无论在上面的各阶段是否遇到了错误，此阶段总是会触发。
 
-This phase is usually for error logging and error reporting to downstream.
+此阶段常用于记录错误日志、错误报告给下游。
 
 ### `logging()`
-This is the last phase that runs after the request is finished (or errors) and before any of its resources are released. Every request will end up in this final phase.
+这是最后一个阶段，在请求完成处理完成之后(或报错之后)、资源释放之前执行。
+每个请求都会在这个阶段终结。
 
-This phase is usually for logging and post request cleanup.
+此阶段常用于记录日志和本次请求最后的清理工作。
 
 ### `request_summary()`
-This is not a phase, but a commonly used callback.
+这是一个普通的用户回调函数，不是一个请求处理阶段。
 
-Every error that reaches `fail_to_proxy()` will be automatically logged in the error log. `request_summary()` will be called to dump the info regarding the request when logging the error.
+每个抵达`fail_to_proxy()`的错误都会自动记录到错误日志中。记录错误日志时会调用`request_summary()`导出与本次请求相关的信息。
 
-This callback returns a string which allows users to customize what info to dump in the error log to help track and debug the failures.
+本回调函数返回一个字符串，用户可以自定义向错误日志中导出的信息内容，用来对失败的请求进行跟踪和调试。
 
 ### `suppress_error_log()`
-This is also not a phase, but another callback.
+这是一个普通的用户回调函数，不是一个请求处理阶段。
 
-`fail_to_proxy()` errors are automatically logged in the error log, but users may not be interested in every error. For example, downstream errors are logged if the client disconnects early, but these errors can become noisy if users are mainly interested in observing upstream issues. This callback can inspect the error and returns true or false. If true, the error will not be written to the log.
+`fail_to_proxy()`错误会自动记录到错误日志中，但是用户不一定想关注所有错误。
+例如，在客户端提前断开连接时会记录下游的错误日志，但是如果用户只关心上游的情况，则下游的日志会对用户造成干扰。
+这个回调函数可以对错误进行侦测并返回true或false。如果返回true，则错误内容不会被写入错入日志。
 
 ### Cache filters
 
