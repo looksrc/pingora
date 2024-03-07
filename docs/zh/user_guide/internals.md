@@ -1,11 +1,10 @@
-# Pingora Internals
+# Pingora 内部原理
 
-(Special thanks to [James Munns](https://github.com/jamesmunns) for writing this section)
+(特别鸣谢[_James Munns_](https://github.com/jamesmunns)编写了这一部分的内容)
 
+## `Server`的启动
 
-## Starting the `Server`
-
-The pingora system starts by spawning a *server*. The server is responsible for starting *services*, and listening for termination events.
+Pingora 系统从孵化一个`Server`开始。`Server`负责启动已注册的所有`Service`并监听终止事件。
 
 ```
                                ┌───────────┐
@@ -19,15 +18,18 @@ The pingora system starts by spawning a *server*. The server is responsible for 
                                └───────────┘
 ```
 
-After spawning the *services*, the server continues to listen to a termination event, which it will propagate to the created services.
+当孵化完所有注册的`Service`，`Server`继续监听终止事件，终止事件会传播给已注册的所有`Service`。
 
-## Services
+## `Serivce`
 
-*Services* are entities that handle listening to given sockets, and perform the core functionality. A *service* is tied to a particular protocol and set of options.
+在Pingora中包含两种服务:
+- **监听服务(listening service)**，是用于监听指定的套接字并执行核心功能的实体。`Service`绑定了特定的端口和一组选项。
+- **后台服务(background service)**，只执行一段任务，不监听套接字
 
-> NOTE: there are also "background" services, which just do *stuff*, and aren't necessarily listening to a socket. For now we're just talking about listener services.
+我们在这一部分只讨论“监听服务”。
 
-Each service has its own threadpool/tokio runtime, with a number of threads based on the configured value. Worker threads are not shared cross-service. Service runtime threadpools may be work-stealing (tokio-default), or non-work-stealing (N isolated single threaded runtimes).
+每个`Service`都有只属于自己的线程池/tokio运行时，他们蕴含的线程数基于所配置的值。
+工作线程不会在`Service`之间共享。`Service`所用的运行时线程池可以基于**任务窃取**(tokio默认)，也可以基于**非任务窃取**(N个互相独立的单线程运行时)。
 
 ```
 ┌─────────────────────────┐
@@ -50,11 +52,11 @@ Each service has its own threadpool/tokio runtime, with a number of threads base
   └───────┘
 ```
 
-## Service Listeners
+## 服务监听
 
-At startup, each Service is assigned a set of downstream endpoints that they listen to. A single service may listen to more than one endpoint. The Server also passes along any relevant configuration, including TLS settings if relevant.
+在启动时，每个`Service`都被设置了一组监听端点。单个`Service`可以监听多个端点。`Server`也会传给它一些相关的配置，包括TLS设置。
 
-These endpoints are converted into listening sockets, called `TransportStack`s. Each `TransportStack` is assigned to an async task within that service's executor.
+这些端点会转换为监听套接字，称为`TransportStack`。每个`TransportStack`都被指派给了服务对应的执行器中的一个异步任务。
 
 ```
                                  ┌───────────────────┐
@@ -81,10 +83,9 @@ These endpoints are converted into listening sockets, called `TransportStack`s. 
                                                             └───────────────┘          └──────────────┘
 ```
 
-## Downstream connection lifecycle
+## 下游连接的生命周期
 
-Each service processes incoming connections by spawning a task-per-connection. These connections are held open
-as long as there are new events to be handled.
+服务为每个入栈的连接启动一个任务。只要这些连接一直有新事件处理，就一直保持打开状态。
 
 ```
                                   ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
@@ -101,13 +102,13 @@ as long as there are new events to be handled.
                                      └───────────────────────────┘
 ```
 
-## What is a proxy then?
+## 代理释义
 
-Interestingly, the `pingora` `Server` itself has no particular notion of a Proxy.
+有趣的是，`pingora` `Server`本身并没有针对**代理**的特定概念。
 
-Instead, it only thinks in terms of `Service`s, which are expected to contain a particular implementor of the `ServiceApp` trait.
+取而代之，它从`Service`这个角度切入，内含一个`ServiceApp`特质的实现者。
 
-For example, this is how an `HttpProxy` struct, from the `pingora-proxy` crate, "becomes" a `Service` spawned by the `Server`:
+例如，下图演示了来自于`pingora-proxy`包的`HttpProxy`结构体，是如何变成由`Server`孵化的`Service`的：
 
 ```
 ┌─────────────┐
@@ -132,7 +133,7 @@ For example, this is how an `HttpProxy` struct, from the `pingora-proxy` crate, 
                                                 └─────────────────────┘
 ```
 
-Different functionality and helpers are provided at different layers in this representation.
+下图演示了，在不同的层级提供的功能和辅助设施。
 
 ```
 ┌─────────────┐        ┌──────────────────────────────────────┐
@@ -156,10 +157,9 @@ Different functionality and helpers are provided at different layers in this rep
 └─────────────┘        └──────────────────────────────────────┘
 ```
 
-The `HttpProxy` struct handles the high level workflow of proxying an HTTP connection
+`HttpProxy`结构体处理代理HTTP连接时的高层工作流。
 
-It uses the `ProxyHttp` (note the flipped wording order!) **trait** to allow customization
-at each of the following steps (note: taken from [the phase chart](./phase_chart.md) doc):
+内部使用了`ProxyHttp`(注意单词顺序是反过来的)**特质**的实例，可以让用户在下面的每个步骤中插入自定义的逻辑(图来自[阶段图](./phase_chart.md)):
 
 ```mermaid
  graph TD;
@@ -192,10 +192,9 @@ at each of the following steps (note: taken from [the phase chart](./phase_chart
 
 ```
 
-## Zooming out
+## 俯瞰
 
-Before we zoom in, it's probably good to zoom out and remind ourselves how
-a proxy generally works:
+在讲解细节之前，先俯瞰下一个代理是如何工作的：
 
 ```
 ┌────────────┐          ┌─────────────┐         ┌────────────┐
@@ -204,37 +203,29 @@ a proxy generally works:
 └────────────┘          └─────────────┘         └────────────┘
 ```
 
-The proxy will be taking connections from the **Downstream** client, and (if
-everything goes right), establishing a connection with the appropriate
-**Upstream** server. This selected upstream server is referred to as
-the **Peer**.
+代理先与**下游**建立连接，再连接到一个选择的**上游**。被选择到的上游称为`Peer`。
 
-Once the connection is established, the Downstream and Upstream can communicate
-bidirectionally.
+一旦连接建立完成，下游和上游就可以进行双向通信了。
 
-So far, the discussion of Server, Services, and Listeners have focused on the LEFT
-half of this diagram, handling incoming Downstream connections, and getting it TO
-the proxy component.
+至此，对于`Server`、`Service`、`Listeners`的讨论都集中在图中的左半边：处理下游的入栈连接，然后传给代理组件。
 
-Next, we'll look at the RIGHT half of this diagram, connecting to Upstreams.
+下一步，我们将关注此图的右边一半：连接到上游。
 
-## Managing the Upstream
+## 管理上游
 
-Connections to Upstream Peers are made through `Connector`s. This is not a specific type or trait, but more
-of a "style".
+通过`Connector`连接到上游`Peer`。`Connector`不是指某个特定的类型或特质，更多的是一种“模式”。
 
-Connectors are responsible for a few things:
+连接器负责以下工作：
+* 与`Peer`建立连接
+* 维护此`Peer`对应的连接池，实现连接复用:
+    * 来自同一个下游客户端的多个请求
+    * 来自不同的下游客户端的多个请求
+* 评估连接的健康状态, 对于H2连接会定期执行ping操作。
+* 处理具有多个池化层的协议，如H2
+* 缓存，如果与协议相关并且已开启
+* 压缩，如果与协议相关并且已开启
 
-* Establishing a connection with a Peer
-* Maintaining a connection pool with the Peer, allowing for connection reuse across:
-    * Multiple requests from a single downstream client
-    * Multiple requests from different downstream clients
-* Measuring health of connections, for connections like H2, which perform regular pings
-* Handling protocols with multiple poolable layers, like H2
-* Caching, if relevant to the protocol and enabled
-* Compression, if relevant to the protocol and enabled
-
-Now in context, we can see how each end of the Proxy is handled:
+在下图中，可以看到代理的各端是如何处理的：
 
 ```
 ┌────────────┐          ┌─────────────┐         ┌────────────┐
@@ -250,7 +241,7 @@ Now in context, we can see how each end of the Proxy is handled:
                 └ ─ ─ ─ ─ ┘         └ ─ ─ ─ ─ ─
 ```
 
-## What about multiple peers?
+## Connectors如何对应多个Peer
 
-`Connectors` only handle the connection to a single peer, so selecting one of potentially multiple Peers
-is actually handled one level up, in the `upstream_peer()` method of the `ProxyHttp` trait.
+`Connectors`只能处理到单个`Peer`的连接，要想实现从多个`Peer`中选择一个`Peer`需要在上层进行处理，
+即在`ProxyHttp`特质的`upstream_peer()`方法中。

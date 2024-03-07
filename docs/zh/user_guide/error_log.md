@@ -1,13 +1,12 @@
-# Error logging
+# 错误日志
+Pingora的库的构建旨在应对网络相关的断连、超时、无效输入等问题。记录这些问题的常用方式是将它们输出到错误日志(`STDERR`或文件)。
 
-Pingora libraries are built to expect issues like disconnects, timeouts and invalid inputs from the network. A common way to record these issues are to output them in error log (STDERR or log files).
+## 日志等级指南
+Pingora采纳了[`log`](https://docs.rs/log/latest/log/)相同的方式，共划分了5个日志级别：
+* `error`：当发生了**导致请求无法被正确处理**的错误时使用此级别。例如尝试连接的上游已经下线了。
+* `warning`：当发生了**可被系统恢复**的错误时使用此级别。例如请求主DNS超时后，系统会转向查询次DNS。
+* `info`：Pingora服务器的启停日志等信息。
+* `debug`：内部细节。此级别在不会编译在`release`版本中。
+* `trace`：更细粒度的内部细节。此级别不会编译在`release`版本中。
 
-## Log level guidelines
-Pingora adopts the idea behind [log](https://docs.rs/log/latest/log/). There are five log levels:
-* `error`: This level should be used when the error stops the request from being handled correctly. For example when the server we try to connect to is offline.
-* `warning`: This level should be used when an error occurs but the system recovers from it. For example when the primary DNS timed out but the system is able to query the secondary DNS.
-* `info`: Pingora logs when the server is starting up or shuting down.
-* `debug`: Internal details. This log level is not compiled in `release` builds.
-* `trace`: Fine-grained internal details. This log level is not compiled in `release` builds.
-
-The pingora-proxy crate has a well-defined interface to log errors, so that users don't have to manually log common proxy errors. See its guide for more details.
+`pingora-proxy`包定义了很好的接口来记录错误，因此用户不必手动记录常见的代理错误。想要了解更多详细信息，请参阅它的说明。

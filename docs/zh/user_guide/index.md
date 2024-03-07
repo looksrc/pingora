@@ -19,10 +19,10 @@
 * [返回错误](errors.md)
 * [例子: 对请求进行控制](modify_filter.md)
 * [连接池和连接复用](pooling.md)
-* [故障处理和故障转移](failover.md)
+* [失败处理和故障转移](failover.md)
 
 ## 高级主题 (正在进行中...)
-* [Pingora 原理](internals.md)
+* [Pingora 内部原理](internals.md)
 * 使用 BoringSSL
 * 用户自定义配置
 * Pingora 异步运行时和线程模型

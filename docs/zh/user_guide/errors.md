@@ -4,7 +4,7 @@
 
 `Result`中使用的`Error`结构体可以包装任意错误。让用户可以对底层错误源进行打标并附加自定义的上下文信息。
 
-用户通常需要通过传播一个已有的错误或创建一个全新的错误用于最终的返回。`pingora-error`内置的函数让这个工作变得更方便。
+用户通常需要通过传播一个已有的错误或创建一个全新的错误用于最终的返回。`pingora-error`内置的函数可以使这个工作变得更方便。
 
 ## 例子
 
@@ -45,15 +45,14 @@ impl MyServer {
 - 一个可选的 _cause_ (一个被包装的错误)
 - 一个 _context_ (用户提供的任意字符串)
 
-一个最小的错误可以通过函数创建，如`new_in` / `new_up` / `new_down`，每个函数指定了一个需要用户提供类型的源错误。
+一个最小的错误可以通过函数创建，如`new_in` / `new_up` / `new_down`，每个函数需要指定一个需要用户提供类型的源错误。
 
 通常来讲:
 * 要创建一个不需要直接原因只需要提供上下文的新错误，则使用`Error::explain`。也可以在`Result`上调用`explain_err`将内部的错误替换为新的错误。
-* To wrap a causing error in a new one with more context, use `Error::because`. You can also use `or_err` on a `Result` to replace the potential error inside it by wrapping the original one.
-要将一个源错误包装到一个新错误并附加更多上下文，使用`Error::because`。也可以在`Result`上调用`or_err`
+* 在将源错误包装为一个新错误时，想要附加更多上下文信息，使用`Error::because`。还可以在`Result`上调用`or_err`，通过包装原始错误替换潜伏在它内部的错误。
 
 ## 重试
 
-错误是可重试的。如果一个错误是可重试的，Pingora代理允许重试上游请求。一些错误只允许在[复用](pooling.md)的连接上重试，比如在处理远端已经丢弃了服务器尝试复用的连接时。
+错误是可重试的。如果一个错误是可重试的，Pingora代理允许重试上游请求。一些错误只允许在[复用](pooling.md)的连接上重试，比如这种情况：尝试复用远端已经丢弃了连接。
 
 默认情况下，新建的`Error`可以持有它的直接源错误的重试状态，或者在未指定重试的情况下被认为是不可重试的。

@@ -1,11 +1,11 @@
-# Connection pooling and reuse
+# 链接池和连接复用
 
-When the request to a `Peer` (upstream server) is finished, the connection to that peer is kept alive and added to a connection pool to be _reused_ by subsequent requests. This happens automatically without any special configuration.
+如果代理到`Peer`(上游服务器)的请求已处理完成，代理服务器与对端的连接会被添加到一个链接池中，被后续的请求 _复用_ 。这个过程是自动发生的，不需要特别的配置。
 
-Requests that reuse previously established connections avoid the latency and compute cost of setting up a new connection, improving the Pingora server's overall performance and scalability.
+请求复用之前已建立的连接，可以避免新建连接所产生延迟和性能消耗，提升Pingora的整体性能和可伸缩性。
 
-## Same `Peer`
-Only the connections to the exact same `Peer` can be reused by a request. For correctness and security reasons, two `Peer`s are the same if and only if all the following attributes are the same
+## 同一个 `Peer`
+只在请求想要连接到完全相同的`Peer`时，连接才可以被复用。为了正确性和安全等因素，两个`Peer`只有在下列属性都相同的情况下才被认为是相同的。
 * IP:port
 * scheme
 * SNI
@@ -15,8 +15,8 @@ Only the connections to the exact same `Peer` can be reused by a request. For co
 * alternative_cn
 * proxy settings
 
-## Disable pooling
-To disable connection pooling and reuse to a certain `Peer`, just set the `idle_timeout` to 0 seconds to all requests using that `Peer`.
+## 禁用连接池
+为了对某个特定的`Peer`禁用连接池和连接复用，只需要在使用此`Peer`的所有请求中将`idle_timeout`设置为0秒。
 
-## Failure
-A connection is considered not reusable if errors happen during the request.
+## 失败
+如果在处理请求的过程中出错了，则认为此连接是不可复用的。
