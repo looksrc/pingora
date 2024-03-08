@@ -20,11 +20,20 @@ Pingora服务器进程监听以下信号：
 ### SIGINT: 快速关闭
 当接收到`SIGINT`信号(ctrl + c)，服务器进程立即停止。
 所有未完成的请求都会被立即中断，因此不推荐使用这个操作。
+```shell
+kill -INT $PID
+```
 
 ### SIGTERM: 优雅关闭
 当接收到`SIGTERM`信号，服务器会通知所有的服务执行关闭，但有一定的宽限时间。
 此操作给了仍未处理完成的请求一定的宽限期。
+```shell
+kill -TERM $PID
+```
 
 ### SIGQUIT: 优雅更新
-类似于`SIGTERM`，但是服务器会将所有的监听套接字传递给新启动的Pingora服务器进程，以实现在不停机情况下更新程序。
-预了解更多细节，请参考[graceful upgrade](graceful.md)一节。
+类似于`SIGTERM`，但服务器会将所有的监听套接字传递给新启动的Pingora进程，以实现在不停机更新程序。
+欲了解更多细节，请参考[**优化升级**](graceful.md)一节。
+```shell
+kill -QUIT $PID
+```
