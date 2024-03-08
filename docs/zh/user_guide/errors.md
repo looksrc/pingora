@@ -1,14 +1,14 @@
 # How to return errors
 
-为了方便处理错误，`pingora-error`库导出了一个自定义的`Result`类型，其它Pingora库都使用这个类型。
+为了方便处理错误，`pingora-error`库导出了一个自定义的`Result`类型，其它Pingora库都在使用这个类型。
 
-`Result`中使用的`Error`结构体可以包装任意错误。让用户可以对底层错误源进行打标并附加自定义的上下文信息。
+`Result`的`Err`变体中使用的`Error`结构体可以包装任意错误，使用户可以标记底层错误源并附的上下文信息。
 
 用户通常需要通过传播一个已有的错误或创建一个全新的错误用于最终的返回。`pingora-error`内置的函数可以使这个工作变得更方便。
 
 ## 例子
 
-例如，当请求中缺失了某个预期的头字段时，可以返回错误：
+例如，当请求中缺失了某个想要的头字段时，可以返回错误：
 
 ```rust
 fn validate_req_header(req: &RequestHeader) -> Result<()> {
@@ -30,29 +30,33 @@ impl MyServer {
 }
 ```
 
-当HTTP请求头中缺失了`host`字段，`validate_req_header`会返回一个`Error`，使用`Error::explain`函数联合`InvalidHTTPHeader`类型，创建了一个错误并附加了一些可以记录在错误日志中的上下文信息。
+在例子中，当HTTP请求头中缺失了`host`字段，`validate_req_header`会返回一个`Result::Err(e)`，
+内部的错误实例是使用`Error::explain`函数传入`InvalidHTTPHeader`错误类型和上下文信息所创建的。
 
-此错误最终会传播到`request_filter`中，然后通过`or_err`处理后返回`HTTPStatus`。
+`Result::Err(e)`最终会传播到`request_filter`中，然后调用`or_err`方法会创建一个`etype`为`HTTPStatus(400)`、`cause`为e的新的错误实例。
 (最终在`fail_to_proxy()`阶段，会将此错误记录到日志，并给下游客户端发送`400 Bad Request`)。
 
-同时，最原始的错误信息会被记录到错误日志中。`or_err`将原始的错误包装为一个新错误，并附加了一些额外的信息，但是`Error`的`Display`实现仍然会打印错误链。
+最原始的错误信息也会被记录到错误日志中。`or_err`以原始错误作为`cause`并提供了`context`信息创建新错误，但是`Error`的`Display`实现仍然会打印错误链。
 
 ## 指导原则
 
 一个错误包含：
-- 一个 _type_ （如`ConnectionClosed`)
-- 一个 _source_ （如`Upstream`, `Downstream`, `Internal`)
-- 一个可选的 _cause_ (一个被包装的错误)
-- 一个 _context_ (用户提供的任意字符串)
+- 错误类型 _etype_ （如`ConnectionClosed`)
+- 错误来源 _esource_ （如`Upstream`, `Downstream`, `Internal`，`Unset`)
+- 错误根因 _cause_ 可选的，(是一个被包装的错误)
+- 重试类型 _retry_ （如`Decided(bool)`，`ReusedOnly`)
+- 错误上下文 _context_ (用户提供的任意字符串)
 
 一个最小的错误可以通过函数创建，如`new_in` / `new_up` / `new_down`，每个函数需要指定一个需要用户提供类型的源错误。
 
 通常来讲:
-* 要创建一个不需要直接原因只需要提供上下文的新错误，则使用`Error::explain`。也可以在`Result`上调用`explain_err`将内部的错误替换为新的错误。
-* 在将源错误包装为一个新错误时，想要附加更多上下文信息，使用`Error::because`。还可以在`Result`上调用`or_err`，通过包装原始错误替换潜伏在它内部的错误。
+* 要想创建一个不带根因( _source_ 为Unset)只提供上下文的错误(`Box<Error>`)，调用`Error::explain`。<br>
+在`pingora_error::Result`上调用`explain_err(Self,ErrorType,F)`，会将错误替换为通过`explain`函数生成的新错误。新错误的上下文信息是将原错误传入闭包`F`后计算得出的。
+* 想要将源错误作为 _source_ 包装进一个新错误(`Box<Error>`)，并为新错误附加上下文信息时,使用`Error::because`。<br>
+在`pingora_error::Result`上调用`or_err(Self,ErrorType,&str)`，会将错误替换为通过`because`函数生成的新错误。
 
 ## 重试
 
-错误是可重试的。如果一个错误是可重试的，Pingora代理允许重试上游请求。一些错误只允许在[复用](pooling.md)的连接上重试，比如这种情况：尝试复用远端已经丢弃了连接。
+错误是可重试的。如果一个错误是可重试的，Pingora代理允许向上游重试。一些错误只允许在[复用的连接](pooling.md)上是可重试的，比如这种情况：尝试复用远端已经丢弃了连接。
 
-默认情况下，新建的`Error`可以持有它的直接源错误的重试状态，或者在未指定重试的情况下被认为是不可重试的。
+默认情况下，新建的`Error`要么是获取它的直接根错误的重试状态，要么在未指定重试状态，被认为是不可重试的。
