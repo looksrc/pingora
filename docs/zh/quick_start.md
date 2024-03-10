@@ -29,7 +29,7 @@ pingora = { version = "0.1", features = [ "lb" ] }
 首先，创建一个Pingora服务器。Pingora的`Server`是一个进程，可以承载一个或多个服务。<br>
 `Server`主要负责解析配置文件和CLI参数、守护进程化、信号处理、优雅重载或关闭。
 
-比较推荐的做法是在`main`函数中初始化`Server`，然后通过`run_forever`孵化所有的运行时线程，阻塞`main`线程直到服务器准备关闭。
+比较推荐的做法是在`main`函数中初始化`Server`，然后通过`run_forever`孵化所有的运行时线程，阻塞`main`线程直到服务器收到关闭信号。
 
 ```rust
 use async_trait::async_trait;
