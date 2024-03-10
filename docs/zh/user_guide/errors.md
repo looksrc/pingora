@@ -2,9 +2,9 @@
 
 为了方便处理错误，`pingora-error`库导出了一个自定义的`Result`类型，其它Pingora库都在使用这个类型。
 
-`Result`的`Err`变体中使用的`Error`结构体可以包装任意错误，使用户可以标记底层错误源并附的上下文信息。
+`Result`的`Err`变体中使用的`Error`结构体可以包装任意错误，使用户可以记录底层错误并附加新的上下文信息。
 
-用户通常需要通过传播一个已有的错误或创建一个全新的错误用于最终的返回。`pingora-error`内置的函数可以使这个工作变得更方便。
+用户通常需要通过传播一个已有的错误或创建一个全新的错误用于最终的返回。`pingora-error`内置的函数可以辅助这些操作。
 
 ## 例子
 
@@ -53,7 +53,7 @@ impl MyServer {
 * 要想创建一个不带根因( _source_ 为Unset)只提供上下文的错误(`Box<Error>`)，调用`Error::explain`。<br>
 在`pingora_error::Result`上调用`explain_err(Self,ErrorType,F)`，会将错误替换为通过`explain`函数生成的新错误。新错误的上下文信息是将原错误传入闭包`F`后计算得出的。
 * 想要将源错误作为 _source_ 包装进一个新错误(`Box<Error>`)，并为新错误附加上下文信息时,使用`Error::because`。<br>
-在`pingora_error::Result`上调用`or_err(Self,ErrorType,&str)`，会将错误替换为通过`because`函数生成的新错误。
+在`pingora_error::Result`上调用`or_err(Self,ErrorType,&str)`，返回`because`函数生成的新错误，源错误包装到新错误的cause字段中。
 
 ## 重试
 
