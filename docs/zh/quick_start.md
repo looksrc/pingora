@@ -55,7 +55,8 @@ pub struct LB(Arc<LoadBalancer<RoundRobin>>);
 
 为了将服务器变成一个代理，需要为`LB`类型实现`ProxyHttp`特质。
 
-为对象实现`ProxyHttp`特质本质上是定义了请求在代理中的处理逻辑。在`ProxyHttp`中唯一必须的方法是`upstream_peer()`，此方法用于决定当前请求需要转发给哪个后端，方法的返回值即为最终确定的后端。
+为对象实现`ProxyHttp`特质本质上是定义了请求在代理中的处理逻辑。
+在`ProxyHttp`中必须的方法是`new_ctx`和`upstream_peer()`，`upstream_peer()`方法用于决定当前请求需要转发给哪个后端，方法的返回值即为最终确定的后端。
 
 在`upstream_peer()`的函数体中，通过调用`LoadBalancer`的`select()`方法从上游列表中轮询选择目标后端。<br>
 在本例子中，使用HTTPS连接到后端，因此在构造[`Peer`](peer.md)对象时还需要传入`use_tls`参数(`true`)以及sni参数(`one.one.one.one`)。
@@ -105,7 +106,7 @@ impl ProxyHttp for LB {
 ### 创建Pingora代理服务
 下一步，利用上面的负载均衡器创建一个代理服务。
 
-Pingora的`Service`监听一个或多个端点(TCP 或 Unix domain socket)。连接建立成功后，`Service`将连接交给它的“应用程序”，`pingora-proxy`就是一种应用程序，用于将HTTP请求代理到上面配置的后端。
+Pingora的`Service`监听一个或多个端点(TCP、TLS、Unix domain socket)。连接建立成功后，`Service`将连接交给它的“应用程序”，`pingora-proxy`就是一种应用程序，用于将HTTP请求代理到上面配置的后端。
 
 在本例子中，创建了一个`LB`实例，带有`1.1.1.1:443` 和 `1.0.0.1:443`两个后端。
 通过函数`http_proxy_service()`创建一个携带`LB`实例的代理`Service`，然后再将`Service`注册到`Server`中。
@@ -160,7 +161,7 @@ Pingora提供了一些实用的特性，只需要几行代码就可以启用并�
 
 ### 对端健康检查
 
-为了让负载均衡器更可靠，我们需要为上游添加健康检查。一旦其中某个后端挂了，迅速停止向此后端分发流量。
+为了让负载均衡器更可靠，我们需要为上游添加健康检查。一旦其中某个后端变得不健康，迅速停止向此后端分发流量。
 
 为负载均衡添加一个不健康的后端，用来观察混入不健康节点后负载均衡的表现。
 
@@ -179,7 +180,7 @@ fn main() {
 curl 127.0.0.1:6188 -svo /dev/null
 ```
 
-可以看到，每三个请求中就有一个报`502: Bad Gateway`，这是因为负载均衡器严格的执行`RoundRobin`负载策略，没有考虑到对端是否还处于健康状态。
+可以看到，每三个请求中就有一个报`502: Bad Gateway`，这是因为负载均衡器严格的执行轮询(`RoundRobin`)负载策略，没有考虑到对端是否还处于健康状态。
 我们可以通过添加基本的健康检查服务来修复这个问题。
 
 ```rust
