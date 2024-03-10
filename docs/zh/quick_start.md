@@ -75,7 +75,7 @@ impl ProxyHttp for LB {
             .select(b"", 256) // 哈希不影响轮询
             .unwrap();
 
-        println!("upstream peer is: {:upstream?}");
+        println!("upstream peer is: {upstream:?}");
 
         // 将 SNI 设为 one.one.one.one
         let peer = Box::new(HttpPeer::new(upstream, true, "one.one.one.one".to_string()));
